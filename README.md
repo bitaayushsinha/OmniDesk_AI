@@ -4,19 +4,21 @@
 [![Framework](https://img.shields.io/badge/Framework-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![Orchestration](https://img.shields.io/badge/Agent_Orchestration-LangGraph-FF6F00.svg)](https://langchain-ai.github.io/langgraph/)
 [![Vector DB](https://img.shields.io/badge/Vector_DB-Chroma_DB-FF6600.svg)](https://www.trychroma.com/)
+[![Relational DB](https://img.shields.io/badge/Relational_DB-SQLite_%2F_SQL-003B57.svg)](https://www.sqlite.org/)
 [![LLM & Embeddings](https://img.shields.io/badge/LLM-OpenAI_GPT--4o--mini-412991.svg)](https://openai.com/)
 [![Docker](https://img.shields.io/badge/Deployment-Docker-2496ED.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
 
-**OmniDesk AI** is a production-grade, autonomous IT Support and Knowledge Operations Copilot designed for modern enterprises. Built with a **stateful Agentic RAG architecture powered by LangGraph, FastAPI, Chroma DB, and OpenAI**, OmniDesk AI shifts traditional static retrieval systems into an active decision-making assistant. 
+**OmniDesk AI** is a production-grade, autonomous IT Support and Knowledge Operations Copilot designed for modern enterprises. Built with a **stateful Agentic RAG architecture powered by LangGraph, FastAPI, Chroma DB, SQL databases, and OpenAI**, OmniDesk AI shifts traditional static retrieval systems into an active decision-making assistant. 
 
-Deployed for enterprise IT and platform operations, OmniDesk resolves internal technical inquiries, enforces data sovereignty, self-corrects retrieval failures, and falls back to real-time external web intelligence only when internal knowledge is verified to be insufficient.
+Deployed for enterprise IT and platform operations, OmniDesk dynamically routes user intents across **structured relational SQL databases** (live asset inventories, pending tickets, employee records) and **unstructured Chroma DB vector documents** (SOPs, hardware refresh policies, compliance runbooks). It actively prevents LLM hallucinations through self-reflective grading, while solving real-world enterprise pain points like **redundant duplicate ticket proliferation** and SLA bottlenecks.
 
 ---
 
 ## 📑 Table of Contents
 - [Business Problem & Operational Context](#-business-problem--operational-context)
 - [System Architecture & Agentic Workflow](#-system-architecture--agentic-workflow)
+- [Dual-Engine Hybrid Routing (SQL + Vector)](#-dual-engine-hybrid-routing-sql--vector)
 - [Key Engineering Differentiators](#-key-engineering-differentiators)
 - [Technology Stack](#-technology-stack)
 - [Repository Structure](#-repository-structure)
@@ -24,7 +26,7 @@ Deployed for enterprise IT and platform operations, OmniDesk resolves internal t
   - [Prerequisites](#prerequisites)
   - [Local Installation](#local-installation)
   - [Environment Configuration](#environment-configuration)
-  - [Knowledge Base Ingestion](#knowledge-base-ingestion)
+  - [Knowledge Base & Database Setup](#knowledge-base--database-setup)
   - [Running the Application](#running-the-application)
 - [Docker Deployment](#-docker-deployment)
 - [REST API Reference](#-rest-api-reference)
@@ -39,15 +41,18 @@ Deployed for enterprise IT and platform operations, OmniDesk resolves internal t
 ### Enterprise Context
 In fast-scaling engineering and technology organizations (400+ employees across Engineering, AI & Data, Product, Sales, and Ops), teams deliver mission-critical platforms and customer-facing high-availability systems.
 
-### Operational Bottlenecks
-Internal IT and platform support teams manage sprawling, multi-format knowledge bases (VPN setups, MFA enforcement, SEV incident runbooks, P95 latency thresholds, database connection pools, cloud cost policies, and hardware allowances). Traditional support setups suffered from:
-1. **High Support Desk Load:** Engineers repeatedly submitted tickets for known policies and standard operating procedures.
-2. **Naive RAG Hallucinations:** Traditional semantic search blindly injects irrelevant chunks into prompts, leading models to invent plausible-sounding yet erroneous troubleshooting steps.
-3. **Data Staleness & Lack of External Telemetry:** When third-party vendors (e.g., cloud platforms, Microsoft Teams, auth providers) suffer service disruptions, internal KBs have no answers, causing naive systems to fail silently.
-4. **Zero Observability:** Standard chatbots act as black boxes with no auditable trace of retrieval decisions, confidence grading, or data lineage.
+### Operational Bottlenecks & The "Duplicate Ticket" Drain
+Internal IT and platform support teams manage sprawling, multi-format knowledge bases and transactional helpdesk queues. Traditional support setups suffered from:
+1. **Redundant Duplicate Ticket Bombing ($15–$25 triage cost per ticket):** When employees experience device wear or await approvals, they frequently create duplicate hardware requests without realizing automated warranty systems or managers already submitted an active ticket in the queue.
+2. **Disconnected Structured vs. Unstructured Silos:** Standard chatbots only read static PDFs (handbooks) or execute canned database queries—failing completely when a query requires cross-referencing live employee asset dates against corporate replacement thresholds.
+3. **Naive RAG Hallucinations:** Traditional semantic search blindly injects irrelevant chunks into prompts, leading models to invent plausible-sounding yet erroneous troubleshooting steps.
+4. **Data Staleness & Lack of External Telemetry:** When third-party vendors (e.g., cloud platforms, Microsoft Teams, auth providers) suffer service disruptions, internal KBs have no answers, causing naive systems to fail silently.
+5. **Zero Observability:** Standard chatbots act as black boxes with no auditable trace of retrieval decisions, confidence grading, or data lineage.
 
 ### OmniDesk AI Solution
 OmniDesk AI delivers an **adaptive, self-evaluating copilot** that:
+- Seamlessly routes and cross-validates between **structured SQL tables** and **unstructured Chroma DB knowledge vectors**.
+- Acts as an operational gatekeeper that **detects and deflects duplicate tickets** before they pollute ServiceNow/Jira queues.
 - Prioritizes private enterprise documents with strict data sovereignty.
 - Autonomously grades retrieved evidence before synthesizing an answer.
 - Routes to real-time web intelligence only when private documentation is genuinely deficient.
@@ -58,50 +63,59 @@ OmniDesk AI delivers an **adaptive, self-evaluating copilot** that:
 
 ## 🧠 System Architecture & Agentic Workflow
 
-Unlike conventional RAG pipelines (`Question → Retrieve → Answer`), OmniDesk AI executes an **agentic state machine** with conditional routing and dynamic feedback loops:
+OmniDesk AI executes an **agentic state machine** in LangGraph with multi-path routing, cyclic self-correction, and tool cross-validation:
 
 ```
-                          ┌───────────────────────────┐
-                          │   Incoming User Query     │
-                          └─────────────┬─────────────┘
-                                        │
-                                        ▼
-                         ┌─────────────────────────────┐
-                         │      [1] Intent Router      │
-                         └──────┬───────────────┬──────┘
-       Casual/Greeting          │               │  Technical / Policy Inquiry
-   ┌────────────────────────────┘               ▼
-   │                             ┌─────────────────────────────┐
-   │                             │  [2] Private KB Retrieval   │
-   │                             │      (Chroma DB Top-K)      │
-   │                             └──────────────┬──────────────┘
-   │                                            │
-   │                                            ▼
-   │                             ┌─────────────────────────────┐
-   │                             │  [3] Evidence Self-Grader   │
-   │                             └──────┬───────────────┬──────┘
-   │                                    │               │
-   │                          Evidence Is HIGH       Evidence Is WEAK
-   │                                    │               │
-   │                                    │               ▼
-   │                                    │  ┌───────────────────────────┐
-   │                                    │  │ [4] Tavily Web Fallback   │
-   │                                    │  └────────────┬──────────────┘
-   │                                    │               │
-   │                                    │               ▼
-   │                                    │  ┌───────────────────────────┐
-   │                                    │  │  [5] Web Evidence Grader  │
-   │                                    │  └────┬─────────────────┬────┘
-   │                                    │       │                 │
-   │                                    │   Evidence HIGH     Evidence WEAK
-   │                                    │       │                 │
-   │                                    │       │                 ▼
-   │                                    │       │  ┌───────────────────────────┐
-   │                                    │       │  │    [6] Query Rewriter     │
-   │                                    │       │  │ (Reformulate & Retry KB)  │
-   │                                    │       │  └──────────────┬────────────┘
-   │                                    │       │                 │ (Max Retry Guard)
-   ▼                                    ▼       ▼                 ▼
+                                  ┌───────────────────────────┐
+                                  │   Incoming User Query     │
+                                  └─────────────┬─────────────┘
+                                                │
+                                                ▼
+                                 ┌─────────────────────────────┐
+                                 │      [1] Intent Router      │
+                                 └──────┬───────┬───────┬──────┘
+             Casual Chat                │       │       │       Complex Asset/Policy Inquiry
+   ┌────────────────────────────────────┘       │       │       (e.g., Eligibility & Tickets)
+   │                       SQL Metric/State     │       │       
+   │                      ┌─────────────────────┘       │       
+   │                      │                             ▼       
+   │                      ▼             ┌─────────────────────────────┐
+   │        ┌─────────────────────────┐ │  [2] Private KB Retrieval   │
+   │        │ [SQL Generator & Exec]  │ │      (Chroma DB Top-K)      │
+   │        │ - Query Device & Ticket │ └──────────────┬──────────────┘
+   │        │   Tables (Read-Only)    │                │
+   │        └─────────────┬───────────┘                ▼
+   │                      │             ┌─────────────────────────────┐
+   │                      │             │  [3] Evidence Self-Grader   │
+   │                      │             └──────┬───────────────┬──────┘
+   │                      │                    │               │
+   │                      │          Evidence HIGH           Evidence WEAK
+   │                      │                    │               │
+   │                      │                    │               ▼
+   │                      │                    │  ┌───────────────────────────┐
+   │                      │                    │  │ [4] Tavily Web Fallback   │
+   │                      │                    │  └────────────┬──────────────┘
+   │                      │                    │               │
+   │                      │                    │               ▼
+   │                      │                    │  ┌───────────────────────────┐
+   │                      │                    │  │  [5] Web Evidence Grader  │
+   │                      │                    │  └────┬─────────────────┬────┘
+   │                      │                    │       │                 │
+   │                      │                    │   Evidence HIGH     Evidence WEAK
+   │                      │                    │       │                 │
+   │                      │                    │       │                 ▼
+   │                      │                    │       │  ┌───────────────────────────┐
+   │                      │                    │       │  │    [6] Query Rewriter     │
+   │                      │                    │       │  │ (Reformulate & Retry KB)  │
+   │                      │                    │       │  └──────────────┬────────────┘
+   │                      │                    │       │                 │ (Max Retry Guard)
+   │                      ▼                    ▼       ▼                 ▼
+   │        ┌─────────────────────────────────────────────────────────────────────────┐
+   │        │      [7] Cross-Validation & Duplicate Ticket Resolution Node            │
+   │        │  - Correlates SQL hardware age with Chroma DB policy eligibility rules  │
+   │        │  - Detects active pending tickets to deflect duplicate submissions     │
+   │        └────────────────────────────────────┬────────────────────────────────────┘
+   ▼                                             ▼
 ┌──────────────────────┐        ┌──────────────────────────────────────────────┐
 │ Direct Answer Engine │        │ Grounded Synthesis & Source Attribution Node │
 └──────────┬───────────┘        └──────────────────────┬───────────────────────┘
@@ -114,22 +128,45 @@ Unlike conventional RAG pipelines (`Question → Retrieve → Answer`), OmniDesk
             └──────────────────────────────────────┘
 ```
 
-### Agentic State Machine Transitions
-1. **Intent Router:** Classifies queries between direct conversational replies (greetings, acknowledgments) vs. enterprise knowledge inquiries.
-2. **Private KB Retrieval:** Extracts dense vector embeddings via OpenAI `text-embedding-3-small` and performs similarity search against Chroma DB.
-3. **Self-Reflective Document Grader:** Employs structured output evaluation to assess whether retrieved chunks directly answer the question.
-4. **Tavily Web Fallback:** If private documents do not contain the answer, the agent escalates to Tavily external search to fetch real-time vendor updates.
-5. **Web Evidence Grader:** Assesses public search results for answerability.
-6. **Query Rewriter & Loop Guard:** If both initial passes fail, the agent optimizes the query semantics and retries retrieval up to a bounded maximum retry threshold (`MAX_RETRIES=1`).
-7. **Grounded Synthesis & Attribution:** Generates factual responses strictly grounded in the approved evidence, outputting transparent citation metadata.
+---
+
+## 🔀 Dual-Engine Hybrid Routing (SQL + Vector)
+
+A major differentiator in OmniDesk AI is its capacity to combine **tabular facts** with **semantic text**:
+
+```text
+                                  User: "Can I upgrade my laptop, and do I have an active ticket?"
+                                                                  │
+                                 ┌────────────────────────────────┴────────────────────────────────┐
+                                 ▼                                                                 ▼
+                  [Structured SQL Pipeline]                                       [Unstructured Vector Pipeline]
+              Table: assigned_devices, support_tickets                            Collection: compny_data_kb
+                                 │                                                                 │
+                                 ▼                                                                 ▼
+                     Extracted Database Facts                                          Extracted Policy Rules
+       - Assigned: Lenovo X1 Carbon (3.4 yrs ago)                        - Threshold: Laptops eligible after 3 years
+       - Open Ticket: #TK-3091 (Status: Pending Approval)                - Rule: Engineering qualifies for ThinkPad/M3
+                                 │                                                                 │
+                                 └────────────────────────────────┬────────────────────────────────┘
+                                                                  ▼
+                                            [Cross-Validation & Decision Engine]
+                                - 3.4 yrs > 3.0 yrs -> Hardware Refresh ELIGIBLE
+                                - Active Ticket #TK-3091 DETECTED -> DUPLICATE DEFLECTION
+                                                                  ▼
+                                           "Eligible for upgrade (3.4 yrs in service), 
+                                            but Ticket #TK-3091 is already pending approval. 
+                                            No new ticket required."
+```
 
 ---
 
 ## ⚡ Key Engineering Differentiators
 
-| Capability | Static / Naive RAG | OmniDesk AI (Agentic RAG) |
+| Capability | Static / Naive RAG | OmniDesk AI (Agentic Hybrid Copilot) |
 |---|---|---|
-| **Data Routing** | Indiscriminately searches vector DB | Intent-based routing separates casual banter from KB lookups |
+| **Data Scope** | Unstructured text documents only | Joint-reasoning across relational SQL tables + Chroma DB documents |
+| **Duplicate Prevention** | None; blindly advises user to open tickets | Cross-checks open service desk tickets to deflect redundant requests |
+| **Data Routing** | Indiscriminately searches vector DB | Intent-based router selects between SQL, Chroma DB, Hybrid, or Direct |
 | **Hallucination Prevention** | None; injects top-k blindly into prompt | Dual-stage LLM-as-a-Judge grading filters irrelevant context |
 | **Out-of-Distribution Handling** | Hallucinates or outputs generic failure | Intelligently falls back to Tavily real-time web search |
 | **Ambiguous Queries** | Fails silently on poor keywords | Autonomous Query Rewriter reframes query for higher recall |
@@ -144,7 +181,8 @@ Unlike conventional RAG pipelines (`Question → Retrieve → Answer`), OmniDesk
 - **Agent Orchestration:** `LangGraph` (StateGraph, conditional edges, structured outputs)
 - **Backend API:** `FastAPI` (Asynchronous endpoints, Pydantic data contracts)
 - **Server:** `Uvicorn` (ASGI production runner)
-- **Vector Database:** `Chroma DB` (Persistent open-source vector store & embeddings index)
+- **Vector Database:** `Chroma DB` (Persistent vector store & embeddings index)
+- **Structured Database:** `SQLite / SQL` (IT asset inventory, ticket state, audit records)
 - **Embeddings:** `OpenAI text-embedding-3-small` (1536-dimensional dense vectors)
 - **Primary LLM:** `OpenAI gpt-4o-mini` (High-speed, cost-optimized inference)
 - **External Search:** `Tavily Search API` (Context-optimized search for AI agents)
@@ -168,20 +206,21 @@ OmniDesk_AI/
 │   │   └── logging.py             # Structured logging configuration
 │   ├── rag/
 │   │   ├── __init__.py
-│   │   ├── state.py               # TypedDict LangGraph state schema & Pydantic models
+│   │   ├── state.py               # TypedDict LangGraph state schema (SQL + Vector + Trace)
 │   │   ├── vectorstore.py         # Vectorstore client, embeddings, and vector retriever
-│   │   └── workflow.py            # LangGraph StateGraph, evaluation nodes & edges
+│   │   └── workflow.py            # LangGraph StateGraph, evaluation nodes & hybrid edges
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── audit.py               # SQLite audit logger for inquiry telemetry
+│   │   ├── audit.py               # SQLite audit logger for inquiry telemetry & analytics
 │   │   └── ingestion.py           # Document parsing (PDF, DOCX, MD, TXT) and chunking
 │   └── main.py                    # FastAPI application initialization & route mounting
 │
 ├── data/
-│   └── sample_kb/
-│       ├── company_it_handbook.md       # IT policies, VPN, MFA, password & hardware rules
-│       ├── compny_data.md               # Company information, organizational structure, reliability
-│       └── service_desk_runbook.md      # IT service desk runbooks & ticket priority
+│   ├── sample_kb/
+│   │   ├── company_it_handbook.md       # IT policies, VPN, MFA, password & hardware rules
+│   │   ├── compny_data.md               # Company information, organizational structure, reliability
+│   │   └── service_desk_runbook.md      # IT service desk runbooks & ticket priority
+│   └── company_records.db               # Relational SQLite database (assets, tickets, employees)
 │
 ├── static/
 │   ├── css/style.css              # Enterprise dashboard styling & responsive layout
@@ -273,9 +312,9 @@ MAX_RETRIES=3
 ADMIN_API_KEY=your-secure-admin-token
 ```
 
-### Knowledge Base Ingestion
+### Knowledge Base & Database Setup
 
-Seed the Chroma vector database with company documentation:
+Seed the Chroma vector database and initialize sample records:
 ```bash
 python ingest_sample_kb.py
 ```
@@ -324,29 +363,31 @@ The application includes an optimized container configuration ready for containe
 
 ## 📡 REST API Reference
 
-### 1. Execute Copilot Query
+### 1. Execute Copilot Query (Hybrid & RAG)
 - **Endpoint:** `POST /api/chat`
 - **Payload:**
   ```json
   {
-    "question": "What is the policy on remote work and home internet expenses?"
+    "question": "Can I replace my company laptop, and do I have an active hardware ticket?"
   }
   ```
 - **Response:**
   ```json
   {
-    "answer": "Employees may work remotely up to three days per week, with teams designating common office days for collaboration. Fully remote arrangements require approval from both the department head and HR. In addition, all employees may expense up to $50 per month for work-related home internet, and new full-time hires may request a one-time home-office equipment allowance of up to $600.",
-    "source_used": "private_kb",
+    "answer": "Yes, you are eligible for a replacement because your Lenovo X1 Carbon was issued 3.4 years ago (policy requires 3 years of service). However, Ticket #TK-3091 ('Laptop Upgrade Request') was already submitted on October 8 and is currently Pending Manager Approval. No duplicate ticket is required.",
+    "source_used": "hybrid_sql_chroma",
     "trace": [
-      "Router → KB",
-      "Private KB retrieval → 4 chunks",
-      "KB evidence grade → GOOD",
-      "Answer generation → PRIVATE KB"
+      "Router → HYBRID_INTENT",
+      "SQL Tool → Executed assigned_devices & support_tickets lookup (1 device, 1 ticket)",
+      "Chroma DB → Retrieved hardware refresh policy (compny_data.md)",
+      "Cross-Validator → Verified eligibility (3.4 yrs > 3.0 yrs threshold)",
+      "Duplicate Guard → Detected active ticket #TK-3091 (Deflected duplicate)",
+      "Answer generation → GROUNDED_HYBRID"
     ],
     "citations": [
       {
         "source": "compny_data.md",
-        "snippet": "Employees may work remotely up to three days per week..."
+        "snippet": "Company laptops are eligible for standard hardware refresh after 36 months..."
       }
     ]
   }
@@ -383,46 +424,54 @@ The application includes an optimized container configuration ready for containe
 
 The following scenarios validate the autonomous decision paths of the agent:
 
-### Scenario A: High-Confidence Private KB Resolution
+### Scenario A: Hybrid Reasoning & Duplicate Ticket Deflection
+- **User Prompt:** *"Can I request a MacBook Pro upgrade, and what is the status of my pending hardware request?"*
+- **Agent Execution Path:**
+  ```text
+  Router → HYBRID → SQL Query (devices & tickets) + Chroma Retrieval (policy) → Cross-Validation → Duplicate Ticket Guard → Answer
+  ```
+- **Result:** Detects that the employee's current laptop exceeds the 3-year refresh threshold, but **deflects a duplicate ticket** by reporting that Ticket `#TK-3091` is already in the procurement approval pipeline.
+
+### Scenario B: Structured SQL Telemetry Lookup (SQL Only)
+- **User Prompt:** *"What is the priority and current status of ticket TK-1042?"*
+- **Agent Execution Path:**
+  ```text
+  Router → SQL_ONLY → Parameterized SQLite Query → Row Validation → Structured Answer
+  ```
+- **Result:** Returns precise status without touching vector embeddings or hallucinating ticket history.
+
+### Scenario C: High-Confidence Private KB Resolution (Vector Only)
 - **User Prompt:** *"What does error code ERR_CONN_8421 indicate, and what is our P95 latency target?"*
 - **Agent Execution Path:**
   ```text
-  Router → KB → Private KB Retrieval → Document Grading (GOOD) → Grounded Synthesis
+  Router → VECTOR_ONLY → Chroma DB Retrieval → Document Grading (GOOD) → Grounded Synthesis
   ```
 - **Result:** Directly quotes reliability standards (P95 < 250ms; `ERR_CONN_8421` indicates primary database connection pool exhaustion). **Zero external web calls are initiated.**
 
-### Scenario B: Sensitive Security Policy Enforcement
+### Scenario D: Sensitive Security Policy Enforcement
 - **User Prompt:** *"Can IT support ask me for my MFA code to diagnose a login problem?"*
 - **Agent Execution Path:**
   ```text
-  Router → KB → Private KB Retrieval → Document Grading (GOOD) → Grounded Synthesis
+  Router → VECTOR_ONLY → Chroma DB Retrieval → Document Grading (GOOD) → Grounded Synthesis
   ```
 - **Result:** Answers with strict adherence to Information Security Handbook: Employees must **never** share passwords or MFA codes with support staff.
 
-### Scenario C: Fallback to External Intelligence
+### Scenario E: Fallback to External Intelligence
 - **User Prompt:** *"Is there an active Microsoft Teams outage or disruption affecting auth today?"*
 - **Agent Execution Path:**
   ```text
-  Router → KB → Private KB Retrieval → Document Grading (WEAK) → Tavily Search → Web Grading (GOOD) → Grounded Synthesis with External Attribution
+  Router → VECTOR_ONLY → Chroma DB Retrieval → Document Grading (WEAK) → Tavily Search → Web Grading (GOOD) → Grounded Synthesis with External Attribution
   ```
 - **Result:** Detects private KB inadequacy, queries Tavily for current vendor telemetry, and synthesizes an up-to-date response citing public sources.
-
-### Scenario D: Intent-Aware Query Rewriting
-- **User Prompt:** *"My communication tool is breaking with connection errors after the recent release."*
-- **Agent Execution Path:**
-  ```text
-  Router → KB → Private KB Retrieval → Document Grading (WEAK) → Query Rewriter → Reformulated Retrieval → Document Grading (GOOD) → Answer
-  ```
-- **Result:** Rewrites query to match Payment Platform / Database pool incident documentation, surfacing the connection-pool rollback details.
 
 ---
 
 ## 🔒 Security & Production Readiness
 
 - **Role-Based Admin Protection:** The `/api/ingest` endpoint is protected via an HTTP header secret (`X-Admin-Key`), preventing unauthorized data manipulation.
-- **Data Sovereignty:** Enterprise documents are indexed strictly in private Chroma DB collections. No company documents are passed to third-party search APIs.
+- **Data Sovereignty:** Enterprise documents are indexed strictly in private Chroma DB collections and local relational tables. No internal data is passed to third-party search APIs.
 - **Fail-Safe Loop Budgeting:** Graph iterations are bounded by deterministic retry guards, preventing unbounded token burn.
-- **Input Sanitization & Type Safety:** All payloads are validated at runtime via Pydantic v2 schemas.
+- **Input Sanitization & Type Safety:** All payloads are validated at runtime via Pydantic v2 schemas, and database queries use read-only execution patterns.
 - **Audit Persistence:** Every prompt, source classification, and execution trace is asynchronously recorded to SQLite for compliance review.
 
 ---
