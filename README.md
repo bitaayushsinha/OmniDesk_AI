@@ -3,14 +3,14 @@
 [![Python Version](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Framework](https://img.shields.io/badge/Framework-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![Orchestration](https://img.shields.io/badge/Agent_Orchestration-LangGraph-FF6F00.svg)](https://langchain-ai.github.io/langgraph/)
-[![Vector DB](https://img.shields.io/badge/Vector_DB-Pinecone-000000.svg)](https://www.pinecone.io/)
+[![Vector DB](https://img.shields.io/badge/Vector_DB-Chroma_DB-FF6600.svg)](https://www.trychroma.com/)
 [![LLM & Embeddings](https://img.shields.io/badge/LLM-OpenAI_GPT--4o--mini-412991.svg)](https://openai.com/)
 [![Docker](https://img.shields.io/badge/Deployment-Docker-2496ED.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
 
-**OmniDesk AI** is a production-grade, autonomous IT Support and Knowledge Operations Copilot designed for modern enterprises. Built with a **stateful Agentic RAG architecture powered by LangGraph, FastAPI, Pinecone, and OpenAI**, OmniDesk AI shifts traditional static retrieval systems into an active decision-making assistant. 
+**OmniDesk AI** is a production-grade, autonomous IT Support and Knowledge Operations Copilot designed for modern enterprises. Built with a **stateful Agentic RAG architecture powered by LangGraph, FastAPI, Chroma DB, and OpenAI**, OmniDesk AI shifts traditional static retrieval systems into an active decision-making assistant. 
 
-Deployed for **NovaCore Technologies**—a fast-scaling cloud and data engineering enterprise—OmniDesk resolves internal technical inquiries, enforces data sovereignty, self-corrects retrieval failures, and falls back to real-time external web intelligence only when internal knowledge is verified to be insufficient.
+Deployed for enterprise IT and platform operations, OmniDesk resolves internal technical inquiries, enforces data sovereignty, self-corrects retrieval failures, and falls back to real-time external web intelligence only when internal knowledge is verified to be insufficient.
 
 ---
 
@@ -28,7 +28,7 @@ Deployed for **NovaCore Technologies**—a fast-scaling cloud and data engineeri
   - [Running the Application](#running-the-application)
 - [Docker Deployment](#-docker-deployment)
 - [REST API Reference](#-rest-api-reference)
-- [Enterprise Verification Scenarios (NovaCore)](#-enterprise-verification-scenarios-novacore)
+- [Enterprise Verification Scenarios](#-enterprise-verification-scenarios)
 - [Security & Production Readiness](#-security--production-readiness)
 - [Author & Engineering Portfolio](#-author--engineering-portfolio)
 
@@ -36,8 +36,8 @@ Deployed for **NovaCore Technologies**—a fast-scaling cloud and data engineeri
 
 ## 🏢 Business Problem & Operational Context
 
-### Enterprise Context: NovaCore Technologies
-**NovaCore Technologies** is a specialized software and cloud engineering organization (420+ employees across Engineering, AI & Data, Product, Sales, and Ops) delivering digital platforms and high-throughput systems. 
+### Enterprise Context
+In fast-scaling engineering and technology organizations (400+ employees across Engineering, AI & Data, Product, Sales, and Ops), teams deliver mission-critical platforms and customer-facing high-availability systems.
 
 ### Operational Bottlenecks
 Internal IT and platform support teams manage sprawling, multi-format knowledge bases (VPN setups, MFA enforcement, SEV incident runbooks, P95 latency thresholds, database connection pools, cloud cost policies, and hardware allowances). Traditional support setups suffered from:
@@ -73,7 +73,7 @@ Unlike conventional RAG pipelines (`Question → Retrieve → Answer`), OmniDesk
    ┌────────────────────────────┘               ▼
    │                             ┌─────────────────────────────┐
    │                             │  [2] Private KB Retrieval   │
-   │                             │      (Pinecone Top-K)       │
+   │                             │      (Chroma DB Top-K)      │
    │                             └──────────────┬──────────────┘
    │                                            │
    │                                            ▼
@@ -116,7 +116,7 @@ Unlike conventional RAG pipelines (`Question → Retrieve → Answer`), OmniDesk
 
 ### Agentic State Machine Transitions
 1. **Intent Router:** Classifies queries between direct conversational replies (greetings, acknowledgments) vs. enterprise knowledge inquiries.
-2. **Private KB Retrieval:** Extracts dense vector embeddings via OpenAI `text-embedding-3-small` and performs cosine similarity search against Pinecone.
+2. **Private KB Retrieval:** Extracts dense vector embeddings via OpenAI `text-embedding-3-small` and performs similarity search against Chroma DB.
 3. **Self-Reflective Document Grader:** Employs structured output evaluation to assess whether retrieved chunks directly answer the question.
 4. **Tavily Web Fallback:** If private documents do not contain the answer, the agent escalates to Tavily external search to fetch real-time vendor updates.
 5. **Web Evidence Grader:** Assesses public search results for answerability.
@@ -144,7 +144,7 @@ Unlike conventional RAG pipelines (`Question → Retrieve → Answer`), OmniDesk
 - **Agent Orchestration:** `LangGraph` (StateGraph, conditional edges, structured outputs)
 - **Backend API:** `FastAPI` (Asynchronous endpoints, Pydantic data contracts)
 - **Server:** `Uvicorn` (ASGI production runner)
-- **Vector Database:** `Pinecone` (Managed serverless vector index)
+- **Vector Database:** `Chroma DB` (Persistent open-source vector store & embeddings index)
 - **Embeddings:** `OpenAI text-embedding-3-small` (1536-dimensional dense vectors)
 - **Primary LLM:** `OpenAI gpt-4o-mini` (High-speed, cost-optimized inference)
 - **External Search:** `Tavily Search API` (Context-optimized search for AI agents)
@@ -169,7 +169,7 @@ OmniDesk_AI/
 │   ├── rag/
 │   │   ├── __init__.py
 │   │   ├── state.py               # TypedDict LangGraph state schema & Pydantic models
-│   │   ├── vectorstore.py         # Pinecone client, embeddings, and vector retriever
+│   │   ├── vectorstore.py         # Vectorstore client, embeddings, and vector retriever
 │   │   └── workflow.py            # LangGraph StateGraph, evaluation nodes & edges
 │   ├── services/
 │   │   ├── __init__.py
@@ -179,8 +179,8 @@ OmniDesk_AI/
 │
 ├── data/
 │   └── sample_kb/
-│       ├── company_it_handbook.md       # NovaCore VPN, MFA, password & hardware policies
-│       ├── novacore_company_handbook.md # NovaCore company info, org structure, reliability
+│       ├── company_it_handbook.md       # IT policies, VPN, MFA, password & hardware rules
+│       ├── compny_data.md               # Company information, organizational structure, reliability
 │       └── service_desk_runbook.md      # IT service desk runbooks & ticket priority
 │
 ├── static/
@@ -192,7 +192,7 @@ OmniDesk_AI/
 │
 ├── uploads/                       # Document ingestion staging directory
 │   ├── .gitkeep
-│   └── novacore_company_information.pdf
+│   └── compny_data.pdf
 │
 ├── .dockerignore                  # Docker build exclusion rules
 ├── .env.example                   # Environment configuration template
@@ -212,7 +212,7 @@ OmniDesk_AI/
 ### Prerequisites
 - **Python:** 3.11 or higher
 - **OpenAI API Key:** For embeddings and LLM reasoning
-- **Pinecone API Key & Index:** Serverless vector index
+- **Chroma DB:** Persistent local/embedded vector database
 - **Tavily API Key:** For external web search fallback
 
 ### Local Installation
@@ -258,10 +258,9 @@ OPENAI_API_KEY=sk-proj-your-openai-key
 OPENAI_MODEL=gpt-4o-mini
 EMBEDDING_MODEL=text-embedding-3-small
 
-# Pinecone Vector Database
-PINECONE_API_KEY=your-pinecone-api-key
-PINECONE_INDEX_NAME=omnidesk-it-support-rag
-PINECONE_NAMESPACE=novacore-company-kb
+# Chroma Vector Database
+CHROMA_PERSIST_DIRECTORY=./data/chroma
+CHROMA_COLLECTION_NAME=compny_data_kb
 
 # Tavily External Web Search
 TAVILY_API_KEY=tvly-your-tavily-key
@@ -276,13 +275,13 @@ ADMIN_API_KEY=your-secure-admin-token
 
 ### Knowledge Base Ingestion
 
-Seed the Pinecone vector database with NovaCore's internal documentation:
+Seed the Chroma vector database with company documentation:
 ```bash
 python ingest_sample_kb.py
 ```
 *Output:*
 ```text
-Indexed 3 files -> 18 chunks -> 18 Pinecone vectors
+Indexed 3 files -> 18 chunks -> 18 Chroma vectors
 ```
 
 ### Running the Application
@@ -330,13 +329,13 @@ The application includes an optimized container configuration ready for containe
 - **Payload:**
   ```json
   {
-    "question": "What is NovaCore's policy on remote work and home internet expenses?"
+    "question": "What is the policy on remote work and home internet expenses?"
   }
   ```
 - **Response:**
   ```json
   {
-    "answer": "NovaCore allows employees to work remotely up to three days per week, with teams designating common office days for collaboration. Fully remote arrangements require approval from both the department head and HR. In addition, all employees may expense up to $50 per month for work-related home internet, and new full-time hires may request a one-time home-office equipment allowance of up to $600.",
+    "answer": "Employees may work remotely up to three days per week, with teams designating common office days for collaboration. Fully remote arrangements require approval from both the department head and HR. In addition, all employees may expense up to $50 per month for work-related home internet, and new full-time hires may request a one-time home-office equipment allowance of up to $600.",
     "source_used": "private_kb",
     "trace": [
       "Router → KB",
@@ -346,7 +345,7 @@ The application includes an optimized container configuration ready for containe
     ],
     "citations": [
       {
-        "source": "novacore_company_handbook.md",
+        "source": "compny_data.md",
         "snippet": "Employees may work remotely up to three days per week..."
       }
     ]
@@ -361,7 +360,7 @@ The application includes an optimized container configuration ready for containe
 - **Response:**
   ```json
   {
-    "filename": "security_runbook_2026.pdf",
+    "filename": "compny_data.pdf",
     "chunks_indexed": 12,
     "status": "success"
   }
@@ -380,7 +379,7 @@ The application includes an optimized container configuration ready for containe
 
 ---
 
-## 🧪 Enterprise Verification Scenarios (NovaCore)
+## 🧪 Enterprise Verification Scenarios
 
 The following scenarios validate the autonomous decision paths of the agent:
 
@@ -390,7 +389,7 @@ The following scenarios validate the autonomous decision paths of the agent:
   ```text
   Router → KB → Private KB Retrieval → Document Grading (GOOD) → Grounded Synthesis
   ```
-- **Result:** Directly quotes NovaCore reliability standards (P95 < 250ms; `ERR_CONN_8421` indicates primary database connection pool exhaustion). **Zero external web calls are initiated.**
+- **Result:** Directly quotes reliability standards (P95 < 250ms; `ERR_CONN_8421` indicates primary database connection pool exhaustion). **Zero external web calls are initiated.**
 
 ### Scenario B: Sensitive Security Policy Enforcement
 - **User Prompt:** *"Can IT support ask me for my MFA code to diagnose a login problem?"*
@@ -398,7 +397,7 @@ The following scenarios validate the autonomous decision paths of the agent:
   ```text
   Router → KB → Private KB Retrieval → Document Grading (GOOD) → Grounded Synthesis
   ```
-- **Result:** Answers with strict adherence to NovaCore Information Security Handbook: Employees must **never** share passwords or MFA codes with support staff.
+- **Result:** Answers with strict adherence to Information Security Handbook: Employees must **never** share passwords or MFA codes with support staff.
 
 ### Scenario C: Fallback to External Intelligence
 - **User Prompt:** *"Is there an active Microsoft Teams outage or disruption affecting auth today?"*
@@ -414,14 +413,14 @@ The following scenarios validate the autonomous decision paths of the agent:
   ```text
   Router → KB → Private KB Retrieval → Document Grading (WEAK) → Query Rewriter → Reformulated Retrieval → Document Grading (GOOD) → Answer
   ```
-- **Result:** Rewrites query to match NovaCore's Payment Platform / Database pool incident documentation, surfacing the connection-pool rollback details.
+- **Result:** Rewrites query to match Payment Platform / Database pool incident documentation, surfacing the connection-pool rollback details.
 
 ---
 
 ## 🔒 Security & Production Readiness
 
 - **Role-Based Admin Protection:** The `/api/ingest` endpoint is protected via an HTTP header secret (`X-Admin-Key`), preventing unauthorized data manipulation.
-- **Data Sovereignty:** Enterprise documents are indexed strictly in private vector namespaces. No company documents are passed to third-party search APIs.
+- **Data Sovereignty:** Enterprise documents are indexed strictly in private Chroma DB collections. No company documents are passed to third-party search APIs.
 - **Fail-Safe Loop Budgeting:** Graph iterations are bounded by deterministic retry guards, preventing unbounded token burn.
 - **Input Sanitization & Type Safety:** All payloads are validated at runtime via Pydantic v2 schemas.
 - **Audit Persistence:** Every prompt, source classification, and execution trace is asynchronously recorded to SQLite for compliance review.
