@@ -267,7 +267,7 @@ TAVILY_API_KEY=tvly-your-tavily-key
 
 # RAG Parameters
 TOP_K=4
-MAX_RETRIES=1
+MAX_RETRIES=3
 
 # Security & Admin Access
 ADMIN_API_KEY=your-secure-admin-token
